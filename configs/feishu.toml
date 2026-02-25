@@ -1,0 +1,12 @@
+# 飞书提醒配置
+
+[feishu]
+# Cron 表达式：工作日 9:00-17:00 每小时55分提醒
+cron_expression = "55 9-17 * * 1-5"
+
+message_title = "休息提醒"
+message_content = "休息5分钟，去上厕所，补补水，并运动一下"
+
+# 飞书群机器人 webhook（建议使用环境变量 FEISHU_WEBHOOK_URL）
+# 也可以直接填写: webhook_url = "https://open.feishu.cn/open-apis/bot/v2/hook/xxx"
+webhook_url = ""

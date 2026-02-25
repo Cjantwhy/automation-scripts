@@ -1,0 +1,19 @@
+[project]
+name = "automation-scripts"
+version = "0.1.0"
+description = "自动化脚本工具集"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "croniter>=2.0.0",
+    "requests>=2.28.0",
+    "pystray>=0.19.0",
+    "pillow>=9.0.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.scripts]
+feishu-reminder = "run_feishu:main"
+
+[dependency-groups]
+dev = []
