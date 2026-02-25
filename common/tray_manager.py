@@ -1,7 +1,5 @@
-import sys
 import threading
 import time
-from typing import Callable, Optional
 
 try:
     import pystray
@@ -20,26 +18,32 @@ class TrayManager:
         self.paused = False
         self.app = None
         self._running = False
+        self._cached_icons = {}
+        self._last_status = None
         
     def set_app(self, app):
         """设置应用实例"""
         self.app = app
         
-    def create_image(self, color="blue"):
+    def _get_cached_image(self, color: str):
+        """获取缓存的图标图像"""
+        if color not in self._cached_icons:
+            self._cached_icons[color] = self._create_image(color)
+        return self._cached_icons[color]
+        
+    def _create_image(self, color: str):
         """创建图标"""
         width = 64
         height = 64
         image = Image.new('RGB', (width, height), color=(255, 255, 255))
         dc = ImageDraw.Draw(image)
         
-        if color == "blue":
-            bg_color = (66, 133, 244)
-        elif color == "yellow":
-            bg_color = (251, 188, 5)
-        elif color == "red":
-            bg_color = (234, 67, 53)
-        else:
-            bg_color = (66, 133, 244)
+        color_map = {
+            "blue": (66, 133, 244),
+            "yellow": (251, 188, 5),
+            "red": (234, 67, 53),
+        }
+        bg_color = color_map.get(color, (66, 133, 244))
         
         dc.ellipse([4, 4, width-4, height-4], fill=bg_color)
         dc.text((width//2-12, height//2-16), self.icon_letter, fill=(255, 255, 255), font=None)
@@ -67,24 +71,40 @@ class TrayManager:
             self.app.stop()
         icon.stop()
         
-    def get_status_text(self, icon=None, item=None):
-        if not self.app:
-            return "服务状态: 未加载"
-        if not self.app.running:
-            return "服务状态: 已停止"
+    def _get_status_key(self):
+        """获取当前状态键"""
+        if not self.app or not self.app.running:
+            return "stopped"
         elif self.paused:
-            return "服务状态: 已暂停"
+            return "paused"
         else:
-            return "服务状态: 运行中"
+            return "running"
+    
+    def get_status_text(self, icon=None, item=None):
+        status_map = {
+            "stopped": "服务状态: 已停止",
+            "paused": "服务状态: 已暂停",
+            "running": "服务状态: 运行中",
+            "unloaded": "服务状态: 未加载",
+        }
+        if not self.app:
+            return status_map["unloaded"]
+        return status_map.get(self._get_status_key(), "服务状态: 未知")
         
     def update_icon(self):
-        if self.icon:
-            if not self.app or not self.app.running:
-                self.icon.icon = self.create_image("red")
-            elif self.paused:
-                self.icon.icon = self.create_image("yellow")
-            else:
-                self.icon.icon = self.create_image("blue")
+        if not self.icon:
+            return
+        status = self._get_status_key()
+        color_map = {"stopped": "red", "paused": "yellow", "running": "blue"}
+        self.icon.icon = self._get_cached_image(color_map[status])
+        
+    def _update_if_changed(self):
+        """仅在状态变化时更新菜单和图标"""
+        current_status = self._get_status_key()
+        if current_status != self._last_status:
+            self._last_status = current_status
+            self.icon.menu = self.setup_menu()
+            self.update_icon()
                 
     def setup_menu(self):
         return pystray.Menu(
@@ -114,15 +134,14 @@ class TrayManager:
         
         self.icon = pystray.Icon(
             "automation_script",
-            self.create_image("blue"),
+            self._get_cached_image("blue"),
             self.title,
             self.setup_menu()
         )
         
         def update_loop():
             while self._running:
-                self.icon.menu = self.setup_menu()
-                self.update_icon()
+                self._update_if_changed()
                 time.sleep(1)
                 
         self._running = True
